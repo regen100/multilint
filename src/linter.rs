@@ -109,6 +109,11 @@ mod tests {
     use tempfile::tempdir;
     use test_log::test;
 
+    #[cfg(windows)]
+    const NEWLINE: &'static str = "\r\n";
+    #[cfg(not(windows))]
+    const NEWLINE: &'static str = "\n";
+
     #[test]
     fn files_with_excludes() {
         let root = tempdir().unwrap();
@@ -127,7 +132,11 @@ mod tests {
         assert!(output.status.success());
         assert_eq!(
             std::str::from_utf8(&output.stdout).unwrap(),
-            format!("option {}\n", root.path().join("main.rs").to_string_lossy())
+            format!(
+                "option {}{}",
+                root.path().join("main.rs").to_string_lossy(),
+                NEWLINE
+            )
         );
     }
 
@@ -159,6 +168,6 @@ mod tests {
         );
         let output = linter.run(&root).unwrap().unwrap();
         assert!(output.status.success());
-        assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), "\n");
+        assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), NEWLINE);
     }
 }
