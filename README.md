@@ -3,7 +3,7 @@
 A [treefmt](https://github.com/numtide/treefmt)-inspired tool to run multiple linters.
 
 ## Configuration format
-`multilint.toml` should exists in the working directory.
+`multilint.toml` should exist in the working directory.
 
 ### Example
 ```
