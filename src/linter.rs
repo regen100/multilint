@@ -1,5 +1,5 @@
 use crate::config::{GlobalConfig, LinterConfig};
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use ignore::{overrides::OverrideBuilder, DirEntry, Walk, WalkBuilder};
 use log::{debug, warn};
 use std::{
@@ -13,6 +13,7 @@ pub struct Linter {
     options: Vec<String>,
     includes: Vec<String>,
     excludes: Vec<String>,
+    work_dir: PathBuf,
 }
 
 impl Linter {
@@ -22,6 +23,7 @@ impl Linter {
             options: config.options,
             includes: config.includes,
             excludes: [global.excludes.clone(), config.excludes].concat(),
+            work_dir: config.work_dir,
         }
     }
 
@@ -29,7 +31,7 @@ impl Linter {
         which::which(&self.command).is_ok()
     }
 
-    pub fn run_files<I, P>(&self, files: I) -> Result<Output>
+    pub fn run_files<I, P>(&self, root: impl AsRef<Path>, files: I) -> Result<Output>
     where
         I: IntoIterator<Item = P>,
         P: AsRef<Path>,
@@ -38,6 +40,15 @@ impl Linter {
         cmd.args(&self.options);
         for f in files {
             cmd.arg(f.as_ref());
+        }
+        if !self.work_dir.as_os_str().is_empty() {
+            let work_dir = root.as_ref().join(&self.work_dir);
+            ensure!(
+                work_dir.is_dir(),
+                "{} is not a directory",
+                work_dir.to_string_lossy()
+            );
+            cmd.current_dir(work_dir);
         }
         debug!(
             "command: {:?}",
@@ -49,13 +60,13 @@ impl Linter {
     }
 
     pub fn run(&self, root: impl AsRef<Path>) -> Result<Option<Output>> {
-        let files = self.paths(root)?;
+        let files = self.paths(&root)?;
         if !self.includes.is_empty() && files.is_empty() {
             debug!("no files");
             return Ok(None);
         }
 
-        Ok(Some(self.run_files(files)?))
+        Ok(Some(self.run_files(root, files)?))
     }
 
     fn walk(&self, root: impl AsRef<Path>) -> Result<Walk> {
@@ -105,7 +116,10 @@ impl Linter {
 mod tests {
     use super::Linter;
     use crate::config::LinterConfig;
-    use std::{default::Default, fs::File};
+    use std::{
+        default::Default,
+        fs::{create_dir, File},
+    };
     use tempfile::tempdir;
     use test_log::test;
 
@@ -125,6 +139,7 @@ mod tests {
                 options: vec!["option".to_string()],
                 includes: vec!["*.rs".to_string()],
                 excludes: vec!["lib.rs".to_string()],
+                ..Default::default()
             },
             &Default::default(),
         );
@@ -169,5 +184,26 @@ mod tests {
         let output = linter.run(&root).unwrap().unwrap();
         assert!(output.status.success());
         assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), NEWLINE);
+    }
+
+    #[test]
+    fn subdir() {
+        let root = tempdir().unwrap();
+        let sub = root.path().join("sub");
+        create_dir(&sub).unwrap();
+        File::create(sub.join("main.rs")).unwrap();
+        let linter = Linter::from_config(
+            LinterConfig {
+                command: "ls".to_string(),
+                work_dir: "sub".into(),
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        let output = linter.run(&root).unwrap().unwrap();
+        assert!(output.status.success());
+        assert!(std::str::from_utf8(&output.stdout)
+            .unwrap()
+            .contains("main.rs"),);
     }
 }

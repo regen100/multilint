@@ -1,8 +1,12 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::{collections::BTreeMap, fs::read_to_string, path::Path};
+use std::{
+    collections::BTreeMap,
+    fs::read_to_string,
+    path::{Path, PathBuf},
+};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Root {
     pub global: Option<GlobalConfig>,
     pub linter: BTreeMap<String, LinterConfig>,
@@ -23,6 +27,8 @@ pub struct LinterConfig {
     pub includes: Vec<String>,
     #[serde(default)]
     pub excludes: Vec<String>,
+    #[serde(default)]
+    pub work_dir: PathBuf,
 }
 
 pub fn from_path(path: impl AsRef<Path>) -> Result<Root> {
