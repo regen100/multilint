@@ -9,6 +9,7 @@ name: Rust
 jobs:
   build_and_test:
     strategy:
+      fail-fast: false
       matrix:
         os:
           - macos-latest

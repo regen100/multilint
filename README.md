@@ -19,4 +19,5 @@ excludes = ["*.zsh"]
 [linter.clippy]
 command = "cargo"
 options = ["clippy"]
+work_dir = "subdir"
 ```
