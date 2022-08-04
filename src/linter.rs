@@ -139,9 +139,9 @@ mod tests {
     use test_log::test;
 
     #[cfg(windows)]
-    const NEWLINE: &'static str = "\r\n";
+    const NEWLINE: &str = "\r\n";
     #[cfg(not(windows))]
-    const NEWLINE: &'static str = "\n";
+    const NEWLINE: &str = "\n";
 
     #[test]
     fn files_with_excludes() {
@@ -219,6 +219,6 @@ mod tests {
         assert!(output.status.success());
         assert!(std::str::from_utf8(&output.stdout)
             .unwrap()
-            .contains("main.rs"),);
+            .contains("main.rs"));
     }
 }
