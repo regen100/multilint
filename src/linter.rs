@@ -1,6 +1,6 @@
 use crate::config::{GlobalConfig, LinterConfig};
 use anyhow::{ensure, Result};
-use ignore::{overrides::OverrideBuilder, DirEntry, Walk, WalkBuilder};
+use ignore::{overrides::OverrideBuilder, DirEntry, Match, WalkBuilder};
 use log::{debug, warn};
 use std::{
     path::{Path, PathBuf},
@@ -69,27 +69,26 @@ impl Linter {
         Ok(Some(self.run_files(root, files)?))
     }
 
-    fn walk(&self, root: impl AsRef<Path>) -> Result<Walk> {
-        let overrides = {
-            let mut builder = OverrideBuilder::new(&root);
-            for pattern in &self.includes {
-                builder.add(pattern)?;
-            }
-            for pattern in &self.excludes {
-                builder.add(&format!("!{}", pattern))?;
-            }
-            builder.build()?
-        };
-        Ok(WalkBuilder::new(&root).overrides(overrides).build())
-    }
-
     fn paths(&self, root: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
         if self.includes.is_empty() {
             return Ok(vec![]);
         }
 
-        Ok(self
-            .walk(&root)?
+        let overrides = {
+            let mut builder = OverrideBuilder::new(&root);
+            for pattern in &self.includes {
+                builder.add(&escape_pattern(pattern))?;
+            }
+            for pattern in &self.excludes {
+                builder.add(&format!("!{}", escape_pattern(pattern)))?;
+            }
+            builder.build()?
+        };
+
+        Ok(WalkBuilder::new(&root)
+            .hidden(false)
+            .overrides(OverrideBuilder::new(&root).add("!.git/")?.build()?)
+            .build()
             .into_iter()
             .filter_map(|entry| -> Option<DirEntry> {
                 match entry {
@@ -108,7 +107,23 @@ impl Linter {
                 }
                 None
             })
+            .filter(|path| match overrides.matched(path, false) {
+                Match::Whitelist(_) => true,
+                Match::None => false,
+                Match::Ignore(i) => {
+                    debug!("ignoring {}: {:?}", path.to_string_lossy(), i);
+                    false
+                }
+            })
             .collect())
+    }
+}
+
+fn escape_pattern(glob: &str) -> String {
+    if glob.starts_with('!') {
+        format!("\\{}", glob)
+    } else {
+        glob.to_string()
     }
 }
 
