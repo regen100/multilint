@@ -1,39 +1,25 @@
-use crate::{config, linter::Linter};
+use crate::{config, linter::Linter, printer::Printer};
 use anyhow::Result;
-use colored::*;
-use std::{
-    io::{stdout, Write},
-    path::Path,
-};
+use std::path::Path;
 
-pub fn run_linters(config_path: impl AsRef<Path>) -> Result<bool> {
+pub fn run_linters(config_path: impl AsRef<Path>, printer: &dyn Printer) -> Result<bool> {
     let config = config::from_path(&config_path)?;
     let global = config.global.unwrap_or_default();
     let root = config_path.as_ref().parent().unwrap();
     let mut ok = true;
     for (name, linter_config) in &config.linter {
-        print!("{} {} ... ", "Running".bold().green(), &name);
+        printer.start(name);
         let linter = Linter::from_config(linter_config.clone(), &global);
         if !linter.is_executable() {
-            println!("{}", "no command".yellow());
+            printer.no_command();
             continue;
         }
         match linter.run(&root)? {
+            None => printer.no_file(),
             Some(output) => {
-                if output.status.success() {
-                    println!("{}", "ok".green());
-                } else {
-                    println!("{}", "failed".red());
-                }
-                if !output.stdout.is_empty() {
-                    stdout().write_all(&output.stdout)?;
-                }
-                if !output.stderr.is_empty() {
-                    stdout().write_all(&output.stderr)?;
-                }
+                printer.status(&output);
                 ok &= output.status.success();
             }
-            None => println!("{}", "skipped".yellow()),
         }
     }
     Ok(ok)
@@ -41,6 +27,8 @@ pub fn run_linters(config_path: impl AsRef<Path>) -> Result<bool> {
 
 #[cfg(test)]
 mod tests {
+    use crate::printer::TextPrinter;
+
     use super::run_linters;
     use std::{fs::File, io::Write};
     use tempfile::tempdir;
@@ -50,6 +38,7 @@ mod tests {
     fn run() {
         let root = tempdir().unwrap();
         let config = root.path().join("config.toml");
+        let printer = TextPrinter::default();
 
         {
             let mut config = File::create(&config).unwrap();
@@ -57,7 +46,7 @@ mod tests {
             writeln!(config, "command = 'true'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(run_linters(&config).unwrap());
+        assert!(run_linters(&config, &printer).unwrap());
 
         {
             let mut config = File::create(&config).unwrap();
@@ -65,6 +54,6 @@ mod tests {
             writeln!(config, "command = 'false'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(!run_linters(&config).unwrap());
+        assert!(!run_linters(&config, &printer).unwrap());
     }
 }

@@ -1,9 +1,19 @@
 use anyhow::Result;
 use colored::Colorize;
-use multilint::driver;
+use multilint::printer::{NullPrinter, TextPrinter};
+use multilint::{driver, printer};
 use std::{env, path::PathBuf, process::exit};
 use structopt::clap;
+use structopt::clap::arg_enum;
 use structopt::StructOpt;
+
+arg_enum! {
+    #[derive(Debug)]
+    enum Printer {
+        Null,
+        Text,
+    }
+}
 
 #[derive(Debug, StructOpt)]
 #[structopt(about, global_setting = clap::AppSettings::ColoredHelp)]
@@ -15,13 +25,21 @@ struct Opt {
     /// Config file
     #[structopt(short, long, parse(from_os_str), default_value = "multilint.toml")]
     config: PathBuf,
+
+    /// Message format
+    #[structopt(short, long, possible_values = &Printer::variants(), case_insensitive = true, default_value="text")]
+    printer: Printer,
 }
 
 fn run() -> Result<()> {
     let opt = Opt::from_args();
     env::set_current_dir(&opt.work_dir)?;
     let config_path = opt.work_dir.join(&opt.config);
-    if !driver::run_linters(config_path)? {
+    let printer: Box<dyn printer::Printer> = match opt.printer {
+        Printer::Null => Box::new(NullPrinter::default()),
+        Printer::Text => Box::new(TextPrinter::default()),
+    };
+    if !driver::run_linters(config_path, &*printer)? {
         exit(1);
     }
     Ok(())
