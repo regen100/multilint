@@ -228,6 +228,7 @@ dependencies = [
  "env_logger",
  "ignore",
  "log",
+ "regex",
  "serde",
  "structopt",
  "tempfile",
