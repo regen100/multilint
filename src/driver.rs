@@ -5,7 +5,6 @@ use std::path::Path;
 pub fn run_linters(config_path: impl AsRef<Path>, printer: &dyn Printer) -> Result<bool> {
     let config = config::from_path(&config_path)?;
     let global = config.global.unwrap_or_default();
-    let root = config_path.as_ref().parent().unwrap();
     let mut ok = true;
     for (name, linter_config) in &config.linter {
         printer.start(name);
@@ -15,7 +14,7 @@ pub fn run_linters(config_path: impl AsRef<Path>, printer: &dyn Printer) -> Resu
             continue;
         }
         let parser = Parser::new(&linter_config.formats)?;
-        match linter.run(&root)? {
+        match linter.run(".")? {
             None => printer.no_file(name),
             Some(output) => {
                 printer.status(name, &output, &parser)?;

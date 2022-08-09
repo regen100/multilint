@@ -46,7 +46,7 @@ impl Linter {
             ensure!(
                 work_dir.is_dir(),
                 "{} is not a directory",
-                work_dir.to_string_lossy()
+                work_dir.display()
             );
             cmd.current_dir(work_dir);
         }
@@ -102,7 +102,13 @@ impl Linter {
             .filter_map(|entry| -> Option<PathBuf> {
                 if let Some(file_type) = entry.file_type() {
                     if !file_type.is_dir() && !file_type.is_symlink() {
-                        return Some(entry.into_path());
+                        return Some(
+                            entry
+                                .path()
+                                .strip_prefix(".")
+                                .unwrap_or_else(|_| entry.path())
+                                .to_path_buf(),
+                        );
                     }
                 }
                 None
@@ -111,7 +117,7 @@ impl Linter {
                 Match::Whitelist(_) => true,
                 Match::None => false,
                 Match::Ignore(i) => {
-                    debug!("ignoring {}: {:?}", path.to_string_lossy(), i);
+                    debug!("ignoring {}: {:?}", path.display(), i);
                     false
                 }
             })
@@ -164,7 +170,7 @@ mod tests {
             std::str::from_utf8(&output.stdout).unwrap(),
             format!(
                 "option {}{}",
-                root.path().join("main.rs").to_string_lossy(),
+                root.path().join("main.rs").display(),
                 NEWLINE
             )
         );

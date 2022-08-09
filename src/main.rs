@@ -1,5 +1,6 @@
 use anyhow::Result;
 use colored::Colorize;
+use log::debug;
 use multilint::printer::{JSONLPrinter, NullPrinter, TextPrinter};
 use multilint::{driver, printer};
 use std::{env, path::PathBuf, process::exit};
@@ -19,9 +20,9 @@ arg_enum! {
 #[derive(Debug, StructOpt)]
 #[structopt(about, global_setting = clap::AppSettings::ColoredHelp)]
 struct Opt {
-    /// Run linters at the directory
-    #[structopt(short = "C", default_value = ".")]
-    pub work_dir: PathBuf,
+    /// Changes the working directory before running
+    #[structopt(short = "C")]
+    pub work_dir: Option<PathBuf>,
 
     /// Config file
     #[structopt(short, long, parse(from_os_str), default_value = "multilint.toml")]
@@ -34,14 +35,16 @@ struct Opt {
 
 fn run() -> Result<()> {
     let opt = Opt::from_args();
-    env::set_current_dir(&opt.work_dir)?;
-    let config_path = opt.work_dir.join(&opt.config);
+    if let Some(work_dir) = &opt.work_dir {
+        debug!("change CWD: {}", work_dir.display());
+        env::set_current_dir(work_dir)?;
+    }
     let printer: Box<dyn printer::Printer> = match opt.printer {
         Printer::Null => Box::new(NullPrinter::default()),
         Printer::Text => Box::new(TextPrinter::default()),
         Printer::JSONL => Box::new(JSONLPrinter::default()),
     };
-    if !driver::run_linters(config_path, &*printer)? {
+    if !driver::run_linters(&opt.config, &*printer)? {
         exit(1);
     }
     Ok(())
