@@ -1,4 +1,4 @@
-use crate::{config, linter::Linter, printer::Printer};
+use crate::{config, linter::Linter, parser::Parser, printer::Printer};
 use anyhow::Result;
 use std::path::Path;
 
@@ -11,13 +11,14 @@ pub fn run_linters(config_path: impl AsRef<Path>, printer: &dyn Printer) -> Resu
         printer.start(name);
         let linter = Linter::from_config(linter_config.clone(), &global);
         if !linter.is_executable() {
-            printer.no_command();
+            printer.no_command(name);
             continue;
         }
+        let parser = Parser::new(&linter_config.formats)?;
         match linter.run(&root)? {
-            None => printer.no_file(),
+            None => printer.no_file(name),
             Some(output) => {
-                printer.status(&output);
+                printer.status(name, &output, &parser)?;
                 ok &= output.status.success();
             }
         }

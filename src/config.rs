@@ -29,6 +29,8 @@ pub struct LinterConfig {
     pub excludes: Vec<String>,
     #[serde(default)]
     pub work_dir: PathBuf,
+    #[serde(default)]
+    pub formats: Vec<String>,
 }
 
 pub fn from_path(path: impl AsRef<Path>) -> Result<Root> {
