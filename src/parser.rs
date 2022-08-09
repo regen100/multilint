@@ -3,8 +3,9 @@ use std::{collections::BTreeMap, convert::identity};
 use anyhow::Result;
 use log::{debug, warn};
 use regex::{Captures, Regex, RegexBuilder};
+use serde::Serialize;
 
-#[derive(Debug, PartialEq, Eq, Default)]
+#[derive(Debug, PartialEq, Eq, Default, Serialize)]
 pub struct Parsed {
     pub program: Option<String>,
     pub file: Option<String>,

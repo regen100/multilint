@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::{
     io::{stdout, Write},
     process::Output,
@@ -5,11 +6,13 @@ use std::{
 
 use colored::*;
 
+use crate::parser::Parser;
+
 pub trait Printer {
     fn start(&self, name: &str);
-    fn no_command(&self);
-    fn no_file(&self);
-    fn status(&self, output: &Output);
+    fn no_command(&self, name: &str);
+    fn no_file(&self, name: &str);
+    fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()>;
 }
 
 #[derive(Default)]
@@ -17,9 +20,11 @@ pub struct NullPrinter {}
 
 impl Printer for NullPrinter {
     fn start(&self, _name: &str) {}
-    fn no_command(&self) {}
-    fn no_file(&self) {}
-    fn status(&self, _output: &Output) {}
+    fn no_command(&self, _name: &str) {}
+    fn no_file(&self, _name: &str) {}
+    fn status(&self, _name: &str, _output: &Output, _parser: &Parser) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Default)]
@@ -30,15 +35,15 @@ impl Printer for TextPrinter {
         print!("{} {} ... ", "Running".bold().green(), &name);
     }
 
-    fn no_command(&self) {
+    fn no_command(&self, _name: &str) {
         println!("{}", "no command".yellow());
     }
 
-    fn no_file(&self) {
+    fn no_file(&self, _name: &str) {
         println!("{}", "skipped".yellow());
     }
 
-    fn status(&self, output: &Output) {
+    fn status(&self, _name: &str, output: &Output, _parser: &Parser) -> Result<()> {
         if output.status.success() {
             println!("{}", "ok".green());
         } else {
@@ -50,5 +55,24 @@ impl Printer for TextPrinter {
         if !output.stderr.is_empty() {
             stdout().write_all(&output.stderr).unwrap();
         }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct JSONLPrinter {}
+
+impl Printer for JSONLPrinter {
+    fn start(&self, _name: &str) {}
+    fn no_command(&self, _name: &str) {}
+    fn no_file(&self, _name: &str) {}
+
+    fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()> {
+        let msgs = parser.parse(std::str::from_utf8(&output.stdout)?);
+        for mut msg in msgs {
+            msg.program.get_or_insert_with(|| name.to_string());
+            println!("{}", serde_json::to_string(&msg)?);
+        }
+        Ok(())
     }
 }
