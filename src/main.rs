@@ -1,7 +1,6 @@
 use anyhow::Result;
 use colored::Colorize;
 use log::debug;
-use multilint::printer::{JSONLPrinter, NullPrinter, TextPrinter};
 use multilint::{driver, printer};
 use std::{env, path::PathBuf, process::exit};
 use structopt::clap;
@@ -14,6 +13,7 @@ arg_enum! {
         Null,
         Text,
         JSONL,
+        GNU,
     }
 }
 
@@ -40,9 +40,10 @@ fn run() -> Result<()> {
         env::set_current_dir(work_dir)?;
     }
     let printer: Box<dyn printer::Printer> = match opt.printer {
-        Printer::Null => Box::new(NullPrinter::default()),
-        Printer::Text => Box::new(TextPrinter::default()),
-        Printer::JSONL => Box::new(JSONLPrinter::default()),
+        Printer::Null => Box::new(printer::NullPrinter::default()),
+        Printer::Text => Box::new(printer::TextPrinter::default()),
+        Printer::JSONL => Box::new(printer::JSONLPrinter::default()),
+        Printer::GNU => Box::new(printer::GNUPrinter::default()),
     };
     if !driver::run_linters(&opt.config, &*printer)? {
         exit(1);

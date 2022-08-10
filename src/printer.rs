@@ -6,7 +6,15 @@ use std::{
 
 use colored::*;
 
-use crate::parser::Parser;
+use crate::parser::{Parsed, Parser};
+
+fn parse(parser: &Parser, name: &str, output: &[u8]) -> Result<Vec<Parsed>> {
+    let mut msgs = parser.parse(std::str::from_utf8(output)?);
+    for msg in &mut msgs {
+        msg.program.get_or_insert_with(|| name.to_string());
+    }
+    Ok(msgs)
+}
 
 pub trait Printer {
     fn start(&self, name: &str);
@@ -68,10 +76,41 @@ impl Printer for JSONLPrinter {
     fn no_file(&self, _name: &str) {}
 
     fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()> {
-        let msgs = parser.parse(std::str::from_utf8(&output.stdout)?);
-        for mut msg in msgs {
-            msg.program.get_or_insert_with(|| name.to_string());
+        let msgs = parse(parser, name, &output.stdout)?;
+        for msg in msgs {
             println!("{}", serde_json::to_string(&msg)?);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct GNUPrinter {}
+
+impl Printer for GNUPrinter {
+    fn start(&self, _name: &str) {}
+    fn no_command(&self, _name: &str) {}
+    fn no_file(&self, _name: &str) {}
+
+    fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()> {
+        let msgs = parse(parser, name, &output.stdout)?;
+        for msg in msgs {
+            if let Some(program) = msg.program {
+                print!("{}:", program);
+            }
+            if let Some(file) = msg.file {
+                print!("{}:", file);
+            }
+            if let Some(line) = msg.line {
+                print!("{}:", line);
+            }
+            if let Some(column) = msg.column {
+                print!("{}:", column);
+            }
+            if let Some(message) = msg.message {
+                print!(" {}", message);
+            }
+            println!();
         }
         Ok(())
     }
