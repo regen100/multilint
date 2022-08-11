@@ -1,23 +1,23 @@
-use crate::{config, linter::Linter, parser::Parser, printer::Printer};
+use crate::{config, format::OutputFormat, linter::Linter, parser::Parser};
 use anyhow::Result;
 use std::path::Path;
 
-pub fn run_linters(config_path: impl AsRef<Path>, printer: &dyn Printer) -> Result<bool> {
+pub fn run_linters(config_path: impl AsRef<Path>, format: &dyn OutputFormat) -> Result<bool> {
     let config = config::from_path(&config_path)?;
     let global = config.global.unwrap_or_default();
     let mut ok = true;
     for (name, linter_config) in &config.linter {
-        printer.start(name);
+        format.start(name);
         let linter = Linter::from_config(linter_config.clone(), &global);
         if !linter.is_executable() {
-            printer.no_command(name);
+            format.no_command(name);
             continue;
         }
         let parser = Parser::new(&linter_config.formats)?;
         match linter.run(".")? {
-            None => printer.no_file(name),
+            None => format.no_file(name),
             Some(output) => {
-                printer.status(name, &output, &parser)?;
+                format.status(name, &output, &parser)?;
                 ok &= output.status.success();
             }
         }
@@ -27,7 +27,7 @@ pub fn run_linters(config_path: impl AsRef<Path>, printer: &dyn Printer) -> Resu
 
 #[cfg(test)]
 mod tests {
-    use crate::printer::TextPrinter;
+    use crate::format::TextFormat;
 
     use super::run_linters;
     use std::{fs::File, io::Write};
@@ -38,7 +38,7 @@ mod tests {
     fn run() {
         let root = tempdir().unwrap();
         let config = root.path().join("config.toml");
-        let printer = TextPrinter::default();
+        let format = TextFormat::default();
 
         {
             let mut config = File::create(&config).unwrap();
@@ -46,7 +46,7 @@ mod tests {
             writeln!(config, "command = 'true'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(run_linters(&config, &printer).unwrap());
+        assert!(run_linters(&config, &format).unwrap());
 
         {
             let mut config = File::create(&config).unwrap();
@@ -54,6 +54,6 @@ mod tests {
             writeln!(config, "command = 'false'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(!run_linters(&config, &printer).unwrap());
+        assert!(!run_linters(&config, &format).unwrap());
     }
 }

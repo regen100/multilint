@@ -18,10 +18,10 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --config <config>      Config file [default: multilint.toml]
-    -p, --printer <printer>    Message format [default: text]  [possible values: Null, Text,
-                               JSONL]
-    -C <work-dir>              Run linters at the directory [default: .]
+    -c, --config <config>    Config file [default: multilint.toml]
+    -f, --format <format>    Message format [default: text]  [possible values: Null, Text,
+                             JSONL, GNU]
+    -C <work-dir>            Changes the working directory before running
 ```
 
 ## Configuration format
@@ -56,20 +56,23 @@ command = "shellcheck"
 options = ["--format=gcc"]
 includes = ["*.sh"]
 formats = ["^%f:%l:%c: %m$"]
-$ echo 'a=`pwd`' >test.sh
+
+$ cat test.sh
+#!/bin/sh
+a=`pwd`
+
 $ multilint
 Running shellcheck ... failed
-test.sh:1:1: error: Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive. [SC2148]
-test.sh:1:1: warning: a appears unused. Verify use (or export if used externally). [SC2034]
-test.sh:1:3: note: Use $(...) notation instead of legacy backticks `...`. [SC2006]
-$ multilint -p jsonl
-{"program":"shellcheck","file":"test.sh","line":1,"column":1,"message":"error: Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive. [SC2148]"}
-{"program":"shellcheck","file":"test.sh","line":1,"column":1,"message":"warning: a appears unused. Verify use (or export if used externally). [SC2034]"}
-{"program":"shellcheck","file":"test.sh","line":1,"column":3,"message":"note: Use $(...) notation instead of legacy backticks `...`. [SC2006]"}
+test.sh:2:1: warning: a appears unused. Verify use (or export if used externally). [SC2034]
+test.sh:2:3: note: Use $(...) notation instead of legacy backticks `...`. [SC2006]
+
+$ multilint -f jsonl
+{"program":"shellcheck","file":"test.sh","line":2,"column":1,"message":"warning: a appears unused. Verify use (or export if used externally). [SC2034]"}
+{"program":"shellcheck","file":"test.sh","line":2,"column":3,"message":"note: Use $(...) notation instead of legacy backticks `...`. [SC2006]"}
+
 $ multilint -p gnu
-shellcheck:test.sh:1:1: error: Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive. [SC2148]
-shellcheck:test.sh:1:1: warning: a appears unused. Verify use (or export if used externally). [SC2034]
-shellcheck:test.sh:1:3: note: Use $(...) notation instead of legacy backticks `...`. [SC2006]
+shellcheck:test.sh:2:1: warning: a appears unused. Verify use (or export if used externally). [SC2034]
+shellcheck:test.sh:2:3: note: Use $(...) notation instead of legacy backticks `...`. [SC2006]
 ```
 
 ## Related projects
