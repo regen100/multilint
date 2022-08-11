@@ -1,15 +1,14 @@
 use anyhow::Result;
 use colored::Colorize;
 use log::debug;
-use multilint::{driver, printer};
+use multilint::{driver, format};
 use std::{env, path::PathBuf, process::exit};
-use structopt::clap;
 use structopt::clap::arg_enum;
-use structopt::StructOpt;
+use structopt::{clap, StructOpt};
 
 arg_enum! {
     #[derive(Debug)]
-    enum Printer {
+    enum Format {
         Null,
         Text,
         JSONL,
@@ -28,9 +27,9 @@ struct Opt {
     #[structopt(short, long, parse(from_os_str), default_value = "multilint.toml")]
     config: PathBuf,
 
-    /// Message format
-    #[structopt(short, long, possible_values = &Printer::variants(), case_insensitive = true, default_value="text")]
-    printer: Printer,
+    /// Output format
+    #[structopt(short, long, possible_values = &Format::variants(), case_insensitive = true, default_value="text")]
+    format: Format,
 }
 
 fn run() -> Result<()> {
@@ -39,13 +38,13 @@ fn run() -> Result<()> {
         debug!("change CWD: {}", work_dir.display());
         env::set_current_dir(work_dir)?;
     }
-    let printer: Box<dyn printer::Printer> = match opt.printer {
-        Printer::Null => Box::new(printer::NullPrinter::default()),
-        Printer::Text => Box::new(printer::TextPrinter::default()),
-        Printer::JSONL => Box::new(printer::JSONLPrinter::default()),
-        Printer::GNU => Box::new(printer::GNUPrinter::default()),
+    let format: Box<dyn format::OutputFormat> = match opt.format {
+        Format::Null => Box::new(format::NullFormat::default()),
+        Format::Text => Box::new(format::TextFormat::default()),
+        Format::JSONL => Box::new(format::JSONLFormat::default()),
+        Format::GNU => Box::new(format::GNUFormat::default()),
     };
-    if !driver::run_linters(&opt.config, &*printer)? {
+    if !driver::run_linters(&opt.config, &*format)? {
         exit(1);
     }
     Ok(())

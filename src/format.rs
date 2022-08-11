@@ -16,7 +16,7 @@ fn parse(parser: &Parser, name: &str, output: &[u8]) -> Result<Vec<Parsed>> {
     Ok(msgs)
 }
 
-pub trait Printer {
+pub trait OutputFormat {
     fn start(&self, name: &str);
     fn no_command(&self, name: &str);
     fn no_file(&self, name: &str);
@@ -24,9 +24,9 @@ pub trait Printer {
 }
 
 #[derive(Default)]
-pub struct NullPrinter {}
+pub struct NullFormat {}
 
-impl Printer for NullPrinter {
+impl OutputFormat for NullFormat {
     fn start(&self, _name: &str) {}
     fn no_command(&self, _name: &str) {}
     fn no_file(&self, _name: &str) {}
@@ -36,9 +36,9 @@ impl Printer for NullPrinter {
 }
 
 #[derive(Default)]
-pub struct TextPrinter {}
+pub struct TextFormat {}
 
-impl Printer for TextPrinter {
+impl OutputFormat for TextFormat {
     fn start(&self, name: &str) {
         print!("{} {} ... ", "Running".bold().green(), &name);
     }
@@ -68,9 +68,9 @@ impl Printer for TextPrinter {
 }
 
 #[derive(Default)]
-pub struct JSONLPrinter {}
+pub struct JSONLFormat {}
 
-impl Printer for JSONLPrinter {
+impl OutputFormat for JSONLFormat {
     fn start(&self, _name: &str) {}
     fn no_command(&self, _name: &str) {}
     fn no_file(&self, _name: &str) {}
@@ -85,9 +85,9 @@ impl Printer for JSONLPrinter {
 }
 
 #[derive(Default)]
-pub struct GNUPrinter {}
+pub struct GNUFormat {}
 
-impl Printer for GNUPrinter {
+impl OutputFormat for GNUFormat {
     fn start(&self, _name: &str) {}
     fn no_command(&self, _name: &str) {}
     fn no_file(&self, _name: &str) {}

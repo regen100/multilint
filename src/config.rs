@@ -35,6 +35,6 @@ pub struct LinterConfig {
 
 pub fn from_path(path: impl AsRef<Path>) -> Result<Root> {
     let config = read_to_string(&path)
-        .with_context(|| format!("Cannot read config {}", path.as_ref().to_string_lossy()))?;
+        .with_context(|| format!("Cannot read config \"{}\"", path.as_ref().to_string_lossy()))?;
     toml::from_str(&config).context("Cannot parse config")
 }
