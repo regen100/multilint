@@ -4,8 +4,19 @@ use ignore::{overrides::OverrideBuilder, DirEntry, Match, WalkBuilder};
 use log::{debug, warn};
 use std::{
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process,
 };
+
+#[derive(Debug, Clone)]
+pub struct Output {
+    pub process: process::Output,
+}
+
+impl Output {
+    pub fn success(&self) -> bool {
+        self.process.status.success()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Linter {
@@ -36,7 +47,7 @@ impl Linter {
         I: IntoIterator<Item = P>,
         P: AsRef<Path>,
     {
-        let mut cmd = Command::new(&self.command);
+        let mut cmd = process::Command::new(&self.command);
         cmd.args(&self.options);
         for f in files {
             cmd.arg(f.as_ref());
@@ -56,7 +67,7 @@ impl Linter {
         );
         let output = cmd.output()?;
         debug!("output: {:?}", &output);
-        Ok(output)
+        Ok(Output { process: output })
     }
 
     pub fn run(&self, root: impl AsRef<Path>) -> Result<Option<Output>> {
@@ -160,9 +171,11 @@ mod tests {
             &Default::default(),
         );
         let output = linter.run(&root).unwrap().unwrap();
-        assert!(output.status.success());
+        assert!(output.success());
         assert_eq!(
-            std::str::from_utf8(&output.stdout).unwrap().trim_end(),
+            std::str::from_utf8(&output.process.stdout)
+                .unwrap()
+                .trim_end(),
             format!("option {}", root.path().join("main.rs").display())
         );
     }
@@ -179,7 +192,7 @@ mod tests {
             &Default::default(),
         );
         let output = linter.run(&root).unwrap();
-        assert_eq!(output, None);
+        assert!(output.is_none());
     }
 
     #[test]
@@ -194,8 +207,13 @@ mod tests {
             &Default::default(),
         );
         let output = linter.run(&root).unwrap().unwrap();
-        assert!(output.status.success());
-        assert_eq!(std::str::from_utf8(&output.stdout).unwrap().trim_end(), "");
+        assert!(output.success());
+        assert_eq!(
+            std::str::from_utf8(&output.process.stdout)
+                .unwrap()
+                .trim_end(),
+            ""
+        );
     }
 
     #[test]
@@ -213,8 +231,8 @@ mod tests {
             &Default::default(),
         );
         let output = linter.run(&root).unwrap().unwrap();
-        assert!(output.status.success());
-        assert!(std::str::from_utf8(&output.stdout)
+        assert!(output.success());
+        assert!(std::str::from_utf8(&output.process.stdout)
             .unwrap()
             .contains("main.rs"));
     }

@@ -1,12 +1,12 @@
 use anyhow::Result;
-use std::{
-    io::{stdout, Write},
-    process::Output,
-};
+use std::io::{stdout, Write};
 
 use colored::*;
 
-use crate::parser::{Parsed, Parser};
+use crate::{
+    linter::Output,
+    parser::{Parsed, Parser},
+};
 
 fn parse(parser: &Parser, name: &str, output: &[u8]) -> Result<Vec<Parsed>> {
     let mut msgs = parser.parse(std::str::from_utf8(output)?);
@@ -52,17 +52,13 @@ impl OutputFormat for TextFormat {
     }
 
     fn status(&self, _name: &str, output: &Output, _parser: &Parser) -> Result<()> {
-        if output.status.success() {
+        if output.success() {
             println!("{}", "ok".green());
         } else {
             println!("{}", "failed".red());
         }
-        if !output.stdout.is_empty() {
-            stdout().write_all(&output.stdout).unwrap();
-        }
-        if !output.stderr.is_empty() {
-            stdout().write_all(&output.stderr).unwrap();
-        }
+        stdout().write_all(&output.process.stdout).unwrap();
+        stdout().write_all(&output.process.stderr).unwrap();
         Ok(())
     }
 }
@@ -76,7 +72,7 @@ impl OutputFormat for JSONLFormat {
     fn no_file(&self, _name: &str) {}
 
     fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()> {
-        let msgs = parse(parser, name, &output.stdout)?;
+        let msgs = parse(parser, name, &output.process.stdout)?;
         for msg in msgs {
             println!("{}", serde_json::to_string(&msg)?);
         }
@@ -93,7 +89,7 @@ impl OutputFormat for GNUFormat {
     fn no_file(&self, _name: &str) {}
 
     fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()> {
-        let msgs = parse(parser, name, &output.stdout)?;
+        let msgs = parse(parser, name, &output.process.stdout)?;
         for msg in msgs {
             if let Some(program) = msg.program {
                 print!("{}:", program);

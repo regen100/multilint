@@ -18,7 +18,7 @@ pub fn run_linters(config_path: impl AsRef<Path>, format: &dyn OutputFormat) -> 
             None => format.no_file(name),
             Some(output) => {
                 format.status(name, &output, &parser)?;
-                ok &= output.status.success();
+                ok &= output.success();
             }
         }
     }
