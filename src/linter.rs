@@ -3,19 +3,39 @@ use anyhow::{ensure, Result};
 use ignore::{overrides::OverrideBuilder, DirEntry, Match, WalkBuilder};
 use log::{debug, warn};
 use std::{
+    fs,
     path::{Path, PathBuf},
     process,
+    time::SystemTime,
 };
 
 #[derive(Debug, Clone)]
 pub struct Output {
-    pub process: process::Output,
+    process: process::Output,
+    modified: Vec<PathBuf>,
 }
 
 impl Output {
     pub fn success(&self) -> bool {
-        self.process.status.success()
+        self.process.status.success() && self.modified.is_empty()
     }
+
+    pub fn stdout(&self) -> &[u8] {
+        &self.process.stdout
+    }
+
+    pub fn stderr(&self) -> &[u8] {
+        &self.process.stderr
+    }
+
+    pub fn modified(&self) -> &[PathBuf] {
+        &self.modified
+    }
+}
+
+struct Entry {
+    file: PathBuf,
+    modified: SystemTime,
 }
 
 #[derive(Debug, Clone)]
@@ -47,10 +67,19 @@ impl Linter {
         I: IntoIterator<Item = P>,
         P: AsRef<Path>,
     {
+        let mut entries = Vec::new();
+        for f in files {
+            let metadata = fs::metadata(f.as_ref())?;
+            entries.push(Entry {
+                file: f.as_ref().to_owned(),
+                modified: metadata.modified()?,
+            });
+        }
+
         let mut cmd = process::Command::new(&self.command);
         cmd.args(&self.options);
-        for f in files {
-            cmd.arg(f.as_ref());
+        for e in &entries {
+            cmd.arg(&e.file);
         }
         if !self.work_dir.as_os_str().is_empty() {
             let work_dir = root.as_ref().join(&self.work_dir);
@@ -66,8 +95,20 @@ impl Linter {
             [vec![cmd.get_program()], cmd.get_args().collect()].concat()
         );
         let output = cmd.output()?;
-        debug!("output: {:?}", &output);
-        Ok(Output { process: output })
+
+        let mut modified = Vec::new();
+        for e in &entries {
+            let metadata = fs::metadata(&e.file)?;
+            if e.modified < metadata.modified()? {
+                modified.push(e.file.to_owned())
+            }
+        }
+        debug!("modified: {:?}", &modified);
+
+        Ok(Output {
+            process: output,
+            modified,
+        })
     }
 
     pub fn run(&self, root: impl AsRef<Path>) -> Result<Option<Output>> {
@@ -150,7 +191,8 @@ mod tests {
     use crate::config::LinterConfig;
     use std::{
         default::Default,
-        fs::{create_dir, File},
+        fs::{create_dir, read_to_string, File},
+        io::Write,
     };
     use tempfile::tempdir;
     use test_log::test;
@@ -173,9 +215,7 @@ mod tests {
         let output = linter.run(&root).unwrap().unwrap();
         assert!(output.success());
         assert_eq!(
-            std::str::from_utf8(&output.process.stdout)
-                .unwrap()
-                .trim_end(),
+            std::str::from_utf8(output.stdout()).unwrap().trim_end(),
             format!("option {}", root.path().join("main.rs").display())
         );
     }
@@ -208,12 +248,7 @@ mod tests {
         );
         let output = linter.run(&root).unwrap().unwrap();
         assert!(output.success());
-        assert_eq!(
-            std::str::from_utf8(&output.process.stdout)
-                .unwrap()
-                .trim_end(),
-            ""
-        );
+        assert_eq!(std::str::from_utf8(output.stdout()).unwrap().trim_end(), "");
     }
 
     #[test]
@@ -232,8 +267,30 @@ mod tests {
         );
         let output = linter.run(&root).unwrap().unwrap();
         assert!(output.success());
-        assert!(std::str::from_utf8(&output.process.stdout)
+        assert!(std::str::from_utf8(output.stdout())
             .unwrap()
             .contains("main.rs"));
+    }
+
+    #[test]
+    fn modified() {
+        let root = tempdir().unwrap();
+        let main = root.path().join("main.rs");
+        {
+            let mut file = File::create(&main).unwrap();
+            write!(&mut file, " use std;").unwrap();
+        }
+        let linter = Linter::from_config(
+            LinterConfig {
+                command: "cargo".to_string(),
+                options: vec!["fmt".to_string(), "--".to_string()],
+                includes: vec!["*.rs".to_string()],
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        let output = linter.run(&root).unwrap().unwrap();
+        assert!(!output.success());
+        assert!(read_to_string(&main).unwrap().starts_with("use std;"));
     }
 }

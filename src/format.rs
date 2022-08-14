@@ -8,8 +8,15 @@ use crate::{
     parser::{Parsed, Parser},
 };
 
-fn parse(parser: &Parser, name: &str, output: &[u8]) -> Result<Vec<Parsed>> {
-    let mut msgs = parser.parse(std::str::from_utf8(output)?);
+fn parse(parser: &Parser, name: &str, output: &Output) -> Result<Vec<Parsed>> {
+    let mut msgs = parser.parse(std::str::from_utf8(output.stdout())?);
+    for f in output.modified() {
+        msgs.push(Parsed {
+            file: Some(f.display().to_string()),
+            message: Some("modified".to_string()),
+            ..Default::default()
+        })
+    }
     for msg in &mut msgs {
         msg.program.get_or_insert_with(|| name.to_string());
     }
@@ -57,8 +64,11 @@ impl OutputFormat for TextFormat {
         } else {
             println!("{}", "failed".red());
         }
-        stdout().write_all(&output.process.stdout).unwrap();
-        stdout().write_all(&output.process.stderr).unwrap();
+        stdout().write_all(output.stdout())?;
+        stdout().write_all(output.stderr())?;
+        for f in output.modified() {
+            println!("{}: modified", f.display());
+        }
         Ok(())
     }
 }
@@ -72,7 +82,7 @@ impl OutputFormat for JSONLFormat {
     fn no_file(&self, _name: &str) {}
 
     fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()> {
-        let msgs = parse(parser, name, &output.process.stdout)?;
+        let msgs = parse(parser, name, output)?;
         for msg in msgs {
             println!("{}", serde_json::to_string(&msg)?);
         }
@@ -89,7 +99,7 @@ impl OutputFormat for GNUFormat {
     fn no_file(&self, _name: &str) {}
 
     fn status(&self, name: &str, output: &Output, parser: &Parser) -> Result<()> {
-        let msgs = parse(parser, name, &output.process.stdout)?;
+        let msgs = parse(parser, name, output)?;
         for msg in msgs {
             if let Some(program) = msg.program {
                 print!("{}:", program);

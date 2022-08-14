@@ -42,7 +42,12 @@ excludes = ["*.zsh"]
 [linter.clippy]
 command = "cargo"
 options = ["clippy"]
-work_dir = "subdir"
+work_dir = "subdir"  # you can change directory
+
+[linter.rustfmt]
+command = "cargo"
+options = ["fmt", "--"]  # formatters can be used as linters (mtime of the files are checked)
+includes = ["*.rs"]
 ```
 
 ## Error message parser
