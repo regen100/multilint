@@ -1,5 +1,9 @@
 # multilint
 
+[![Status](https://img.shields.io/github/workflow/status/regen100/multilint/Rust)](https://github.com/regen100/multilint/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/multilint)](https://crates.io/crates/multilint)
+[![License](https://img.shields.io/github/license/regen100/multilint)](https://github.com/regen100/multilint/blob/main/LICENSE)
+
 A tool to run multiple linters.
 
 ## Usage
