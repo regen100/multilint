@@ -14,6 +14,14 @@ pub struct Parsed {
     pub message: Option<String>,
 }
 
+/// Convert short commands to regex pattern
+///
+/// ```
+/// # use multilint::parser::to_re;
+/// assert_eq!(to_re("%%"), "%");
+/// assert_eq!(to_re("%m"), "(?P<m>.*)");
+/// assert_eq!(to_re("%%%m%%%"), "%(?P<m>.*)%");
+/// ```
 pub fn to_re(format: &str) -> String {
     let mut ret = String::new();
     let mut escape = false;
@@ -92,15 +100,8 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use super::{to_re, Parsed, Parser};
+    use super::{Parsed, Parser};
     use test_log::test;
-
-    #[test]
-    fn re() {
-        assert_eq!(to_re("%%"), "%");
-        assert_eq!(to_re("%m"), r"(?P<m>.*)");
-        assert_eq!(to_re("%%%m%%%"), r"%(?P<m>.*)%");
-    }
 
     #[test]
     fn empty() {
