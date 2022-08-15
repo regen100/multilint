@@ -66,6 +66,10 @@ pub struct LinterConfig {
     /// Exclude git submodules (default value in toml is `true`)
     #[serde(default = "bool_true")]
     pub exclude_submodules: bool,
+
+    /// Force the linter to process one file at a time.
+    #[serde(default)]
+    pub single_file: bool,
 }
 
 pub fn from_path(path: impl AsRef<Path>) -> Result<Root> {
