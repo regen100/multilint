@@ -4,11 +4,10 @@ use std::path::Path;
 
 pub fn run_linters(config_path: impl AsRef<Path>, format: &dyn OutputFormat) -> Result<bool> {
     let config = config::from_path(&config_path)?;
-    let global = config.global.unwrap_or_default();
     let mut ok = true;
     for (name, linter_config) in &config.linter {
         format.start(name);
-        let linter = Linter::from_config(linter_config.clone(), &global);
+        let linter = Linter::from_config(linter_config.clone(), &config.global);
         if !linter.is_executable() {
             format.no_command(name);
             continue;

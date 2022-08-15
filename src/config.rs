@@ -6,9 +6,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+fn bool_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Root {
-    pub global: Option<GlobalConfig>,
+    #[serde(default)]
+    pub global: GlobalConfig,
     pub linter: BTreeMap<String, LinterConfig>,
 }
 
@@ -31,6 +36,8 @@ pub struct LinterConfig {
     pub work_dir: PathBuf,
     #[serde(default)]
     pub formats: Vec<String>,
+    #[serde(default = "bool_true")]
+    pub exclude_submodules: bool,
 }
 
 pub fn from_path(path: impl AsRef<Path>) -> Result<Root> {

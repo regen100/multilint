@@ -45,6 +45,7 @@ pub struct Linter {
     includes: Vec<String>,
     excludes: Vec<String>,
     work_dir: PathBuf,
+    exclude_submodules: bool,
 }
 
 impl Linter {
@@ -55,6 +56,7 @@ impl Linter {
             includes: config.includes,
             excludes: [global.excludes.clone(), config.excludes].concat(),
             work_dir: config.work_dir,
+            exclude_submodules: config.exclude_submodules,
         }
     }
 
@@ -137,9 +139,21 @@ impl Linter {
             builder.build()?
         };
 
-        Ok(WalkBuilder::new(&root)
-            .hidden(false)
-            .overrides(OverrideBuilder::new(&root).add("!.git/")?.build()?)
+        let mut walk = WalkBuilder::new(&root);
+        walk.hidden(false)
+            .overrides(OverrideBuilder::new(&root).add("!.git/")?.build()?);
+        if self.exclude_submodules {
+            walk.filter_entry(|entry| {
+                if let Some(file_type) = entry.file_type() {
+                    // this method must cover most cases
+                    if file_type.is_dir() && entry.path().join(".git").is_file() {
+                        return false;
+                    }
+                }
+                true
+            });
+        }
+        Ok(walk
             .build()
             .into_iter()
             .filter_map(|entry| -> Option<DirEntry> {
@@ -193,6 +207,7 @@ mod tests {
         default::Default,
         fs::{create_dir, read_to_string, File},
         io::Write,
+        process,
     };
     use tempfile::tempdir;
     use test_log::test;
@@ -292,5 +307,48 @@ mod tests {
         let output = linter.run(&root).unwrap().unwrap();
         assert!(!output.success());
         assert!(read_to_string(&main).unwrap().starts_with("use std;"));
+    }
+
+    #[test]
+    fn submodule() {
+        let root = tempdir().unwrap();
+        let git = |args: &[&str]| {
+            assert!(process::Command::new("git")
+                .current_dir(&root)
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success());
+        };
+        git(&["init"]);
+        git(&["config", "user.name", "test"]);
+        git(&["config", "user.email", "test"]);
+        File::create(root.path().join("main.rs")).unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-m", "init"]);
+        git(&["submodule", "add", &root.path().display().to_string()]);
+        let test = |exclude_submodules: bool, count: usize| {
+            let linter = Linter::from_config(
+                LinterConfig {
+                    command: "ls".to_string(),
+                    includes: vec!["*.rs".to_string()],
+                    exclude_submodules,
+                    ..Default::default()
+                },
+                &Default::default(),
+            );
+            let output = linter.run(&root).unwrap().unwrap();
+            assert!(output.success());
+            assert_eq!(
+                std::str::from_utf8(output.stdout())
+                    .unwrap()
+                    .matches("main.rs")
+                    .count(),
+                count
+            );
+        };
+        test(false, 2);
+        test(true, 1);
     }
 }
