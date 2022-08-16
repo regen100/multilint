@@ -1,4 +1,7 @@
-use crate::config::{GlobalConfig, LinterConfig};
+use crate::{
+    config::{GlobalConfig, LinterConfig},
+    xargs::Xargs,
+};
 use anyhow::{ensure, Result};
 use ignore::{overrides::OverrideBuilder, DirEntry, Match, WalkBuilder};
 use log::{debug, warn};
@@ -78,8 +81,8 @@ impl Linter {
             });
         }
 
-        let mut cmd = process::Command::new(&self.command);
-        cmd.args(&self.options);
+        let mut cmd = Xargs::new(&self.command, None);
+        cmd.common_args(&self.options);
         for e in &entries {
             cmd.arg(&e.file);
         }
@@ -92,10 +95,6 @@ impl Linter {
             );
             cmd.current_dir(work_dir);
         }
-        debug!(
-            "command: {:?}",
-            [vec![cmd.get_program()], cmd.get_args().collect()].concat()
-        );
         let output = cmd.output()?;
 
         let mut modified = Vec::new();
