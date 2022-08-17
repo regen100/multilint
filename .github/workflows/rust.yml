@@ -3,47 +3,101 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*.*.*"
 
 name: Rust
 
 jobs:
   build_and_test:
+    name: ${{ matrix.job.target }}
+    runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-latest
-          - ubuntu-20.04
-          - windows-2019
-    runs-on: ${{ matrix.os }}
+        job:
+          - target: x86_64-apple-darwin
+            os: macos-12
+          - target: x86_64-pc-windows-gnu
+            os: windows-2019
+          - target: x86_64-pc-windows-msvc
+            os: windows-2019
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-20.04
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all-features
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --all-features
-
-  clippy_check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: nightly
-            components: rustfmt, clippy
-            override: true
-      - uses: actions-rs/cargo@v1
+          target: ${{ matrix.job.target }}
+          override: true
+          profile: minimal
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+      - name: Rustfmt
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
-      - uses: actions-rs/clippy-check@v1
+          args: -- --check
+      - name: Clippy
+        uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features -- -Dwarnings
+          command: clippy
+          args: --locked --release --all-features --target=${{ matrix.job.target }} --no-deps -- -Dwarnings
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --locked --release --all-features --target=${{ matrix.job.target }}
+        env:
+          RUSTFLAGS: "-C link-arg=-s"
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --locked --release --all-features --target=${{ matrix.job.target }}
+      - name: Create package
+        id: package
+        shell: bash
+        run: |
+          set -u
+          metadata="$(cargo metadata --format-version=1 --no-deps)"
+          name="$(echo "${metadata}" | jq --raw-output ".packages[0].name")"
+          version="$(echo "${metadata}" | jq --raw-output ".packages[0].version")"
+          fullname="${name}-v${version}-${{ matrix.job.target }}"
+          echo ::set-output name=fullname::"${fullname}"
+          case ${{ matrix.job.target }} in
+            *-pc-windows-*) executable="target/${{ matrix.job.target }}/release/${name}.exe" ;;
+            *) executable="target/${{ matrix.job.target }}/release/${name}" ;;
+          esac
+          artifact_dir=".ci/${fullname}"
+          mkdir -p "${artifact_dir}"
+          cp "${executable}" "${artifact_dir}"
+          case ${{ matrix.job.target }} in
+            *-pc-windows-*) artifact="${artifact_dir}.zip" ;;
+            *) artifact="${artifact_dir}.tar.gz" ;;
+          esac
+          echo ::set-output name=artifact::"${artifact}"
+          pushd "${artifact_dir}" >/dev/null
+          case ${{ matrix.job.target }} in
+            *-pc-windows-*) 7z -y a ../../"${artifact}" * ;;
+            *) tar czf ../../"${artifact}" * ;;
+          esac
+          popd >/dev/null
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.package.outputs.fullname }}
+          path: ${{ steps.package.outputs.artifact }}
+          if-no-files-found: error
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            ${{ steps.package.outputs.artifact }}
