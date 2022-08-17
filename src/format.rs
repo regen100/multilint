@@ -90,6 +90,7 @@ impl OutputFormat for JSONLFormat {
     }
 }
 
+/// See [GNU Coding Standards](https://www.gnu.org/prep/standards/html_node/Errors.html)
 #[derive(Default)]
 pub struct GNUFormat {}
 
