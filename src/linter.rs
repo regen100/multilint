@@ -49,6 +49,7 @@ pub struct Linter {
     excludes: Vec<String>,
     work_dir: PathBuf,
     exclude_submodules: bool,
+    single_file: bool,
 }
 
 impl Linter {
@@ -60,6 +61,7 @@ impl Linter {
             excludes: [global.excludes.clone(), config.excludes].concat(),
             work_dir: config.work_dir,
             exclude_submodules: config.exclude_submodules,
+            single_file: config.single_file,
         }
     }
 
@@ -81,7 +83,7 @@ impl Linter {
             });
         }
 
-        let mut cmd = Xargs::new(&self.command, None);
+        let mut cmd = Xargs::new(&self.command, if self.single_file { Some(1) } else { None });
         cmd.common_args(&self.options);
         for e in &entries {
             cmd.arg(&e.file);
