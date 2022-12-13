@@ -314,13 +314,12 @@ mod tests {
     fn submodule() {
         let root = tempdir().unwrap();
         let git = |args: &[&str]| {
-            assert!(process::Command::new("git")
+            let cmd = process::Command::new("git")
                 .current_dir(&root)
                 .args(args)
                 .output()
-                .unwrap()
-                .status
-                .success());
+                .unwrap();
+            assert!(cmd.status.success(), "{:?}", cmd);
         };
         git(&["init"]);
         git(&["config", "user.name", "test"]);
