@@ -3,8 +3,10 @@ use crate::{
     xargs::Xargs,
 };
 use anyhow::{ensure, Result};
+use digest;
 use ignore::{overrides::OverrideBuilder, DirEntry, Match, WalkBuilder};
 use log::{debug, warn};
+use sha2::{Digest, Sha256};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -37,8 +39,36 @@ impl Output {
 }
 
 struct Entry {
-    file: PathBuf,
+    path: PathBuf,
     modified: SystemTime,
+    hash: Option<digest::Output<Sha256>>,
+}
+
+impl Entry {
+    fn new(path: impl AsRef<Path>, use_hash: bool) -> Result<Entry> {
+        let metadata = fs::metadata(&path)?;
+        let hash = if use_hash {
+            Some(Sha256::digest(fs::read(&path)?))
+        } else {
+            None
+        };
+        Ok(Entry {
+            path: path.as_ref().to_owned(),
+            modified: metadata.modified()?,
+            hash,
+        })
+    }
+
+    fn is_same(&self) -> Result<bool> {
+        if let Some(hash) = &self.hash {
+            let new_hash = &Sha256::digest(fs::read(&self.path)?);
+            return Ok(hash == new_hash);
+        }
+
+        let metadata = fs::metadata(&self.path)?;
+        let modified = metadata.modified()?;
+        Ok(self.modified == modified)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -50,6 +80,7 @@ pub struct Linter {
     work_dir: PathBuf,
     exclude_submodules: bool,
     single_file: bool,
+    check_hash: bool,
 }
 
 impl Linter {
@@ -62,6 +93,7 @@ impl Linter {
             work_dir: config.work_dir,
             exclude_submodules: config.exclude_submodules,
             single_file: config.single_file,
+            check_hash: config.check_hash,
         }
     }
 
@@ -76,17 +108,13 @@ impl Linter {
     {
         let mut entries = Vec::new();
         for f in files {
-            let metadata = fs::metadata(f.as_ref())?;
-            entries.push(Entry {
-                file: f.as_ref().to_owned(),
-                modified: metadata.modified()?,
-            });
+            entries.push(Entry::new(f, self.check_hash)?);
         }
 
         let mut cmd = Xargs::new(&self.command, if self.single_file { Some(1) } else { None });
         cmd.common_args(&self.options);
         for e in &entries {
-            cmd.arg(&e.file);
+            cmd.arg(&e.path);
         }
         if !self.work_dir.as_os_str().is_empty() {
             let work_dir = root.as_ref().join(&self.work_dir);
@@ -101,9 +129,8 @@ impl Linter {
 
         let mut modified = Vec::new();
         for e in &entries {
-            let metadata = fs::metadata(&e.file)?;
-            if e.modified < metadata.modified()? {
-                modified.push(e.file.to_owned())
+            if !e.is_same()? {
+                modified.push(e.path.to_owned())
             }
         }
         debug!("modified: {:?}", &modified);
@@ -308,6 +335,30 @@ mod tests {
         let output = linter.run(&root).unwrap().unwrap();
         assert!(!output.success());
         assert!(read_to_string(&main).unwrap().starts_with("use std;"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn hash() {
+        let root = tempdir().unwrap();
+        let main = root.path().join("main.rs");
+        File::create(&main).unwrap();
+        let linter = Linter::from_config(
+            LinterConfig {
+                command: "bash".to_string(),
+                options: vec![
+                    "-c".to_string(),
+                    "sleep 0.1; touch $@".to_string(),
+                    "--".to_string(),
+                ],
+                includes: vec!["*.rs".to_string()],
+                check_hash: true,
+                ..Default::default()
+            },
+            &Default::default(),
+        );
+        let output = linter.run(&root).unwrap().unwrap();
+        assert!(output.success());
     }
 
     #[test]

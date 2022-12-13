@@ -70,6 +70,10 @@ pub struct LinterConfig {
     /// Force the linter to process one file at a time.
     #[serde(default)]
     pub single_file: bool,
+
+    /// Use hash functions to detect file changes
+    #[serde(default)]
+    pub check_hash: bool,
 }
 
 pub fn from_path(path: impl AsRef<Path>) -> Result<Root> {
