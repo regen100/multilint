@@ -55,6 +55,9 @@ jobs:
           args: --locked --release --all-features --target=${{ matrix.job.target }}
         env:
           RUSTFLAGS: "-C link-arg=-s"
+      - name: Setup
+        run: |
+          git config --global protocol.file.allow always
       - name: Test
         uses: actions-rs/cargo@v1
         with:
