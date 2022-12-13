@@ -50,7 +50,7 @@ work_dir = "subdir"  # you can change directory
 
 [linter.rustfmt]
 command = "cargo"
-options = ["fmt", "--"]  # formatters can be used as linters (mtime of the files are checked)
+options = ["fmt", "--"]  # formatters can be used as linters (mtime of the files are checked if `check_hash` is false)
 includes = ["*.rs"]
 ```
 
