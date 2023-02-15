@@ -106,6 +106,12 @@ impl Linter {
         I: IntoIterator<Item = P>,
         P: AsRef<Path>,
     {
+        let work_dir = if self.work_dir.as_os_str().is_empty() {
+            None
+        } else {
+            Some(&self.work_dir)
+        };
+
         let mut entries = Vec::new();
         for f in files {
             entries.push(Entry::new(f, self.check_hash)?);
@@ -114,10 +120,14 @@ impl Linter {
         let mut cmd = Xargs::new(&self.command, if self.single_file { Some(1) } else { None });
         cmd.common_args(&self.options);
         for e in &entries {
-            cmd.arg(&e.path);
+            let path = if work_dir.is_some() {
+                fs::canonicalize(root.as_ref().join(&e.path))?.to_path_buf()
+            } else {
+                e.path.to_path_buf()
+            };
+            cmd.arg(path);
         }
-        if !self.work_dir.as_os_str().is_empty() {
-            let work_dir = root.as_ref().join(&self.work_dir);
+        if let Some(work_dir) = &work_dir {
             ensure!(
                 work_dir.is_dir(),
                 "{} is not a directory",
@@ -295,15 +305,15 @@ mod tests {
     }
 
     #[test]
-    fn subdir() {
+    fn work_dir() {
         let root = tempdir().unwrap();
-        let sub = root.path().join("sub");
-        create_dir(&sub).unwrap();
-        File::create(sub.join("main.rs")).unwrap();
+        let subdir = root.path().join("sub");
+        create_dir(&subdir).unwrap();
+        File::create(subdir.join("main.rs")).unwrap();
         let linter = Linter::from_config(
             LinterConfig {
                 command: "ls".to_string(),
-                work_dir: "sub".into(),
+                work_dir: subdir.clone(),
                 ..Default::default()
             },
             &Default::default(),
