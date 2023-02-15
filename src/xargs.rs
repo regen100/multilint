@@ -73,6 +73,8 @@ impl Xargs {
             stderr: Vec::new(),
         };
 
+        debug!("current_dir: {:?}", self.current_dir);
+
         let mut args: &[OsString] = &self.args;
         loop {
             let mut cmd = argmax::Command::new(&self.program);
