@@ -10,7 +10,7 @@ A tool to run multiple linters.
 
     $ cargo install multilint
     $ multilint --help
-    multilint 0.1.3
+    multilint 0.0.0
     A driver of multiple linters
 
     USAGE:
@@ -21,9 +21,10 @@ A tool to run multiple linters.
         -V, --version    Prints version information
 
     OPTIONS:
-        -f, --format <format>    Message format [default: text]  [possible values: Null, Raw,
-                                 Text]
-        -C <work-dir>            Changes the working directory before running
+        -f, --format <format>        Message format [default: text]  [possible values: Null, Raw,
+                                     Text]
+        -l, --linter <linters>...    Linters to run
+        -C <work-dir>                Changes the working directory before running
 
 ## Configuration format
 

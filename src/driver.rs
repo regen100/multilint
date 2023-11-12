@@ -2,10 +2,19 @@ use crate::{config, format::OutputFormat, linter::Linter};
 use anyhow::Result;
 use std::path::Path;
 
-pub fn run_linters(config_path: impl AsRef<Path>, format: &dyn OutputFormat) -> Result<bool> {
+pub fn run_linters(
+    config_path: impl AsRef<Path>,
+    format: &dyn OutputFormat,
+    linters: Option<&[String]>,
+) -> Result<bool> {
     let config = config::from_path(&config_path)?;
     let mut ok = true;
     for (name, linter_config) in &config.linter {
+        if let Some(linters) = linters {
+            if !linters.contains(name) {
+                continue;
+            }
+        }
         format.start(name);
         let linter = Linter::from_config(linter_config.clone(), &config.global);
         if !linter.is_executable() {
@@ -44,7 +53,7 @@ mod tests {
             writeln!(config, "command = 'true'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(run_linters(&root.path(), &format).unwrap());
+        assert!(run_linters(&root.path(), &format, None).unwrap());
 
         {
             let mut config = File::create(&config).unwrap();
@@ -52,6 +61,21 @@ mod tests {
             writeln!(config, "command = 'false'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(!run_linters(&root.path(), &format).unwrap());
+        assert!(!run_linters(&root.path(), &format, None).unwrap());
+    }
+
+    #[test]
+    fn run_selected() {
+        let root = tempdir().unwrap();
+        let config = root.path().join("multilint.toml");
+        let format = TextFormat::default();
+
+        {
+            let mut config = File::create(&config).unwrap();
+            writeln!(config, "[linter.test]").unwrap();
+            writeln!(config, "command = 'false'").unwrap();
+            writeln!(config, "includes = ['*']").unwrap();
+        }
+        assert!(run_linters(&root.path(), &format, Some(&[])).unwrap());
     }
 }

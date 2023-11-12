@@ -25,6 +25,10 @@ struct Opt {
     /// Output format
     #[structopt(short, long, possible_values = &Format::variants(), case_insensitive = true, default_value="text")]
     format: Format,
+
+    /// Linters to run
+    #[structopt(short, long = "linter")]
+    linters: Option<Vec<String>>,
 }
 
 fn run() -> Result<()> {
@@ -38,7 +42,7 @@ fn run() -> Result<()> {
         Format::Raw => Box::<format::RawFormat>::default(),
         Format::Text => Box::<format::TextFormat>::default(),
     };
-    if !driver::run_linters(env::current_dir()?, &*format)? {
+    if !driver::run_linters(env::current_dir()?, &*format, opt.linters.as_deref())? {
         exit(1);
     }
     Ok(())
