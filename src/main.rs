@@ -22,10 +22,6 @@ struct Opt {
     #[structopt(short = "C")]
     pub work_dir: Option<PathBuf>,
 
-    /// Config file
-    #[structopt(short, long, parse(from_os_str), default_value = "multilint.toml")]
-    config: PathBuf,
-
     /// Output format
     #[structopt(short, long, possible_values = &Format::variants(), case_insensitive = true, default_value="text")]
     format: Format,
@@ -42,7 +38,7 @@ fn run() -> Result<()> {
         Format::Raw => Box::<format::RawFormat>::default(),
         Format::Text => Box::<format::TextFormat>::default(),
     };
-    if !driver::run_linters(&opt.config, &*format)? {
+    if !driver::run_linters(env::current_dir()?, &*format)? {
         exit(1);
     }
     Ok(())
