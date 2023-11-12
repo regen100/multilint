@@ -4,7 +4,7 @@ on:
     branches:
       - main
     tags:
-      - "v*.*.*"
+      - "v*"
 
 name: Rust
 
@@ -30,39 +30,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: ${{ matrix.job.target }}
-          override: true
-          profile: minimal
+          targets: ${{ matrix.job.target }}
+          components: clippy, rustfmt
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.job.target }}
       - name: Rustfmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check
+        run: cargo fmt -- --check
       - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --locked --release --all-features --target=${{ matrix.job.target }} --no-deps -- -Dwarnings
+        run: cargo clippy --locked --release --all-features --target=${{ matrix.job.target }} --no-deps -- -Dwarnings
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --locked --release --all-features --target=${{ matrix.job.target }}
+        run: cargo build --locked --release --all-features --target=${{ matrix.job.target }}
         env:
           RUSTFLAGS: "-C link-arg=-s"
-      - name: Setup
-        run: |
-          git config --global protocol.file.allow always
       - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --locked --release --all-features --target=${{ matrix.job.target }}
+        run: cargo test --locked --release --all-features --target=${{ matrix.job.target }}
       - name: Create package
         id: package
         shell: bash
@@ -72,7 +58,7 @@ jobs:
           name="$(echo "${metadata}" | jq --raw-output ".packages[0].name")"
           version="$(echo "${metadata}" | jq --raw-output ".packages[0].version")"
           fullname="${name}-v${version}-${{ matrix.job.target }}"
-          echo ::set-output name=fullname::"${fullname}"
+          echo "fullname=${fullname}" >>"$GITHUB_OUTPUT"
           case ${{ matrix.job.target }} in
             *-pc-windows-*) executable="target/${{ matrix.job.target }}/release/${name}.exe" ;;
             *) executable="target/${{ matrix.job.target }}/release/${name}" ;;
@@ -84,7 +70,7 @@ jobs:
             *-pc-windows-*) artifact="${artifact_dir}.zip" ;;
             *) artifact="${artifact_dir}.tar.gz" ;;
           esac
-          echo ::set-output name=artifact::"${artifact}"
+          echo "artifact=${artifact}" >>"$GITHUB_OUTPUT"
           pushd "${artifact_dir}" >/dev/null
           case ${{ matrix.job.target }} in
             *-pc-windows-*) 7z -y a ../../"${artifact}" * ;;
