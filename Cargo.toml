@@ -13,7 +13,7 @@ include = ["LICENSE", "src/"]
 [dependencies]
 anyhow = "1.0.58"
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.5.9"
+toml = "0.8.8"
 ignore = "0.4.18"
 log = "0.4.17"
 env_logger = "0.9.0"

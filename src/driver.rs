@@ -35,7 +35,7 @@ mod tests {
     #[test]
     fn run() {
         let root = tempdir().unwrap();
-        let config = root.path().join("config.toml");
+        let config = root.path().join("multilint.toml");
         let format = TextFormat::default();
 
         {
@@ -44,7 +44,7 @@ mod tests {
             writeln!(config, "command = 'true'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(run_linters(&config, &format).unwrap());
+        assert!(run_linters(&root.path(), &format).unwrap());
 
         {
             let mut config = File::create(&config).unwrap();
@@ -52,6 +52,6 @@ mod tests {
             writeln!(config, "command = 'false'").unwrap();
             writeln!(config, "includes = ['*']").unwrap();
         }
-        assert!(!run_linters(&config, &format).unwrap());
+        assert!(!run_linters(&root.path(), &format).unwrap());
     }
 }

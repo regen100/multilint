@@ -21,14 +21,13 @@ A tool to run multiple linters.
         -V, --version    Prints version information
 
     OPTIONS:
-        -c, --config <config>    Config file [default: multilint.toml]
         -f, --format <format>    Message format [default: text]  [possible values: Null, Raw,
                                  Text]
         -C <work-dir>            Changes the working directory before running
 
 ## Configuration format
 
-`multilint.toml` should exist in the working directory.
+All `multilint.toml` in directories from the root to the current directory are merged and parsed.
 
 ### Example
 
