@@ -1,4 +1,4 @@
-use crate::{config, format::OutputFormat, linter::Linter, parser::Parser};
+use crate::{config, format::OutputFormat, linter::Linter};
 use anyhow::Result;
 use std::path::Path;
 
@@ -12,11 +12,10 @@ pub fn run_linters(config_path: impl AsRef<Path>, format: &dyn OutputFormat) -> 
             format.no_command(name);
             continue;
         }
-        let parser = Parser::new(&linter_config.formats)?;
         match linter.run(".")? {
             None => format.no_file(name),
             Some(output) => {
-                format.status(name, &output, &parser)?;
+                format.status(name, &output)?;
                 ok &= output.success();
             }
         }

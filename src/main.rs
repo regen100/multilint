@@ -11,8 +11,6 @@ arg_enum! {
     enum Format {
         Null,
         Text,
-        JSONL,
-        GNU,
     }
 }
 
@@ -41,8 +39,6 @@ fn run() -> Result<()> {
     let format: Box<dyn format::OutputFormat> = match opt.format {
         Format::Null => Box::<format::NullFormat>::default(),
         Format::Text => Box::<format::TextFormat>::default(),
-        Format::JSONL => Box::<format::JSONLFormat>::default(),
-        Format::GNU => Box::<format::GNUFormat>::default(),
     };
     if !driver::run_linters(&opt.config, &*format)? {
         exit(1);

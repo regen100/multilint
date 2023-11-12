@@ -193,7 +193,6 @@ impl Linter {
         }
         Ok(walk
             .build()
-            .into_iter()
             .filter_map(|entry| -> Option<DirEntry> {
                 match entry {
                     Ok(entry) => Some(entry),
@@ -377,6 +376,7 @@ mod tests {
         let git = |args: &[&str]| {
             let cmd = process::Command::new("git")
                 .current_dir(&root)
+                .args(["-c", "protocol.file.allow=always"])
                 .args(args)
                 .output()
                 .unwrap();
