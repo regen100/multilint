@@ -22,8 +22,8 @@ A tool to run multiple linters.
 
     OPTIONS:
         -c, --config <config>    Config file [default: multilint.toml]
-        -f, --format <format>    Message format [default: text]  [possible values: Null, Text,
-                                 JSONL, GNU]
+        -f, --format <format>    Message format [default: text]  [possible values: Null, Raw,
+                                 Text]
         -C <work-dir>            Changes the working directory before running
 
 ## Configuration format
