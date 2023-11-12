@@ -1,0 +1,4 @@
+[linter.test]
+command = "zsh"
+options = ["-c", "echo aa"]
+

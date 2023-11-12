@@ -10,6 +10,7 @@ arg_enum! {
     #[derive(Debug)]
     enum Format {
         Null,
+        Raw,
         Text,
     }
 }
@@ -38,6 +39,7 @@ fn run() -> Result<()> {
     }
     let format: Box<dyn format::OutputFormat> = match opt.format {
         Format::Null => Box::<format::NullFormat>::default(),
+        Format::Raw => Box::<format::RawFormat>::default(),
         Format::Text => Box::<format::TextFormat>::default(),
     };
     if !driver::run_linters(&opt.config, &*format)? {

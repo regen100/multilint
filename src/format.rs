@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::io::{stdout, Write};
+use std::io::{stderr, stdout, Write};
 
 use colored::*;
 
@@ -20,6 +20,21 @@ impl OutputFormat for NullFormat {
     fn no_command(&self, _name: &str) {}
     fn no_file(&self, _name: &str) {}
     fn status(&self, _name: &str, _output: &Output) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct RawFormat {}
+
+impl OutputFormat for RawFormat {
+    fn start(&self, _name: &str) {}
+    fn no_command(&self, _name: &str) {}
+    fn no_file(&self, _name: &str) {}
+
+    fn status(&self, _name: &str, output: &Output) -> Result<()> {
+        stderr().write_all(output.stderr())?;
+        stdout().write_all(output.stdout())?;
         Ok(())
     }
 }
@@ -46,8 +61,8 @@ impl OutputFormat for TextFormat {
         } else {
             println!("{}", "failed".red());
         }
-        stdout().write_all(output.stdout())?;
         stdout().write_all(output.stderr())?;
+        stdout().write_all(output.stdout())?;
         for f in output.modified() {
             println!("{}: modified", f.display());
         }
