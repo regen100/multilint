@@ -48,21 +48,6 @@ pub struct LinterConfig {
     #[serde(default)]
     pub work_dir: PathBuf,
 
-    /// Error message regex patterns
-    ///
-    /// You can use short commands (for details: [`to_re()`](crate::parser::to_re))
-    /// - `%p`: Program name
-    /// - `%f`: File name
-    /// - `%l`: Line number
-    /// - `%c`: Column number
-    /// - `%m`: Message
-    /// - `%%`: `%`
-    ///
-    /// Examples:
-    /// - `^%f:%l:%c: %m$`
-    #[serde(default)]
-    pub formats: Vec<String>,
-
     /// Exclude git submodules (default value in toml is `true`)
     #[serde(default = "bool_true")]
     pub exclude_submodules: bool,
